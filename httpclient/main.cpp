@@ -17,8 +17,6 @@ int main()
 	HttpClient::SendReq(url2, [](std::string rsp) { 
 		std::cout << "http rsp2: " << rsp << std::endl; 
 	});
-
-	system("pause");
-
+	char ch = getchar();
 	return 0;
 }

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>RESTful API demo</title>
+  <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+</script>
+</head>
+<body>
+    <h3>GET</h3>
+    <div>
+      <div><label>GET data:</label><input type="text" id="get_data" /></div>
+      <div><label>Result GET:</label> <span id="result1">&nbsp;</span></div>
+      <div><button id="get_btn">Send GET</button></div>
+    </div>
+ 
+    <h3>POST</h3>
+    <div>
+      <div><label>Number a:</label> <input type="text" id="a" /></div>
+      <div><label>Number b:</label> <input type="text" id="b" /></div>
+      <div><label>Result POST:</label> <span id="result2">&nbsp;</span></div>
+      <div><button id="post_btn">Send Post</button></div>
+    </div>
+
+    <h2>websocket</h2>
+ 
+    <div>
+        <span id="ws_text">&nbsp;</span>
+        <input type="text" id="send_input" />
+        <button id="ws_btn">WS Send</button>
+    </div>
+    <script>
+      $("#get_btn").click(function() {
+        $.ajax({
+          url: '/api/get',
+          method: 'GET',
+          dataType: 'json',
+          data: { data: $("#get_data").val() },
+          success: function (json) {
+            console.log("get rsp: ", json);
+            $('#result1').html(json.result);
+          }
+        });
+      });
+      $("#post_btn").click(function() {
+        $.ajax({
+          url: "/api/post",
+          method: 'POST',
+          dataType: 'json',
+          data: { a: $("#a").val(), b: $("#b").val() },
+          success: function (json) {
+            console.log("post rsp: ", json);
+            $('#result2').html(json.result);
+          }
+        });
+      });
+    </script>
+</body>
+</html>
+
+ 
+    <!-- // // websocket
+    // var websocket = new WebSocket('ws://' + location.host + '/ws');
+    // websocket.onopen = function (ev) {
+    //     console.log(ev.data);
+    // };
+    // websocket.onerror = function (ev) {
+    //     console.log(ev.data);
+    // };
+    // websocket.onclose = function (ev) {
+    //     console.log(ev.data);
+    // };
+    // websocket.onmessage = function (ev) {
+    //     console.log(ev.data);
+ 
+    //     document.getElementById("ws_text").innerHTML = ev.data;
+    // };
+ 
+    // window.onload = function () {
+    //     document.getElementById('send_button').onclick = function (ev) {
+    //         var msg = document.getElementById('send_input').value;
+    //         websocket.send(msg);
+    //     };
+    // }; -->
