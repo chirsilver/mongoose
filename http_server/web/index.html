@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>RESTful API demo</title>
+  <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+</script>
+</head>
+<body>
+    <h3>GET</h3>
+    <div>
+      <div><label>GET data:</label><input type="text" id="get_data" /></div>
+      <div><label>Result GET:</label> <span id="result1">&nbsp;</span></div>
+      <div><button id="get_btn">Send GET</button></div>
+    </div>
+ 
+    <h3>POST</h3>
+    <div>
+      <div><label>Number a:</label> <input type="text" id="a" /></div>
+      <div><label>Number b:</label> <input type="text" id="b" /></div>
+      <div><label>Result POST:</label> <span id="result2">&nbsp;</span></div>
+      <div><button id="post_btn">Send Post</button></div>
+    </div>
+
+    <h2>POST array</h2>
+    <div>
+        <input type="text" id="arr_input" />
+        <button id="arr_btn">Num Send</button>
+        <div><label>Result Arr:</label> <span id="arr_text">&nbsp;</span></div>
+    </div>
+    
+    <h2>Websocket</h2>
+    <div>
+      <div>
+        <button id="ws_start">Start</button>
+        <button id="ws_close">Close</button>
+        <button id="ws_send">Send</button>
+      </div>
+      <div>
+        <label>Send Msg: </label><input type="text" id="ws_input" />
+        <div><label>Recv Msg: </label><span id="ws_text">&nbsp;</span></div>
+      </div>
+    </div>
+    <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+    <script>
+      var ws;
+      var ws_run = false;
+      $("#get_btn").click(function() {
+        $.ajax({
+          url: '/api/get',
+          method: 'GET',
+          dataType: 'json',
+          data: { msg: $("#get_data").val() },
+          headers: { "Connection": "close" },
+          success: function (json) {
+            console.log("get rsp: ", json);
+            $('#result1').html(json.result);
+          }
+        });
+      });
+      $("#post_btn").click(function() {
+        $.ajax({
+          url: "/api/post",
+          method: 'POST',
+          dataType: 'json',
+          data: { a: $("#a").val(), b: $("#b").val() },
+          success: function (json) {
+            console.log("post rsp: ", json);
+            $('#result2').html(json.result);
+          }
+        });
+      });
+      $('#arr_btn').click(function() {
+        $.ajax({
+          url: "/api/postarr",
+          method: "POST", 
+          dataType: 'json',
+          data: { num: $('#arr_input').val() },
+          success: function(data) {
+            console.log("postarr rsp: ", data);
+            $('#arr_text').html(data.result.toString());
+          }
+        })
+      })
+      $('#ws_start').click(function() {
+        if(ws_run) return;
+        ws = new WebSocket("ws://" + location.host + "/ws");
+        ws.onmessage = function(ev) {
+          console.log(ev);
+          $('#ws_text').html(ev.data);
+        };
+        ws.onerror = function(ev) {
+          console.log(ev);
+          $('#ws_text').html(ev.data);
+        };
+        ws.onopen = function (ev) {
+          console.log(ev.data);
+          $('#ws_text').html(ev.data);
+        };
+        ws.onclose = function (ev) {
+          console.log(ev.data);
+          $('#ws_text').html(ev.data);
+        };
+        ws_run = true;
+      });
+      $('#ws_close').click(function() {
+        if(!ws_run) return;
+        ws.close();
+        ws_run = false;
+      });
+      $('#ws_send').click(function() {
+        if(ws_run) {
+          ws.send($('#ws_input').val());
+        } else {
+          $('#ws_text').html("websocket is not running!");
+        }
+      });
+    </script>
+</body>
+</html>
