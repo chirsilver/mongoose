@@ -1,5 +1,6 @@
-FLAGS = -lssl -lcrypto -DM_SSL
+FLAGS = -lssl -lcrypto -DMG_ENABLE_SSL=1
 
-all:main.cc 
+all: 
+	# gcc -c ../common/mongoose.c $(FLAGS) -o mongoose.o
 	g++ -c main.cc $(FLAGS) -o main.o 
-	g++ main.o mongoose.o $(FLAGS) -o main
+	# g++ main.o mongoose.o $(FLAGS) -o main

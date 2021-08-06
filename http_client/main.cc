@@ -14,7 +14,14 @@
 #include <netinet/in.h>
 #include <sys/epoll.h>
 
-#include "../common/mongoose.h"
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <openssl/crypto.h>
+#include <openssl/comp.h>
+
+extern "C" {
+    #include "../common/mongoose.h"
+}
 
 using namespace std;
 typedef void (*RecvCallBack)(string data);
@@ -112,7 +119,9 @@ void SendHttpReq(string url, string post_data, RecvCallBack recvback) {
     mg_mgr_init(&mgr, NULL);
 
     memset(&opts, 0, sizeof(opts));
-    opts.flags |= MG_F_SSL;
+    opts.ssl_key = "./.ssl/me.key";
+    opts.ssl_cert = "./.ssl/me.crt";
+    opts.ssl_ca_cert = "./.ssl/ca.crt";
     
     if(post_data == "NULL") {
         nc = mg_connect_http_opt(&mgr, HandleHttpEvent, opts, url.c_str(), NULL, NULL);
@@ -141,4 +150,8 @@ void SigInt(int signo) {
 
 void CallBack(string data) {
     printf("[Client] receive callback: %s.\n", data.c_str());
+}
+
+extern "C" {
+    #include "../common/mongoose.c"
 }

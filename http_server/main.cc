@@ -40,9 +40,15 @@ int main() {
   server_opt.document_root = "./web";
   server_opt.enable_directory_listing = "yes";
   mg_mgr mgr;
+  mg_bind_opts opts;
   mg_mgr_init(&mgr, NULL);
+  bzero(&opts, sizeof(mg_bind_opts));
   
-  mg_connection *nc = mg_bind(&mgr, PORT, EventHandler);
+  opts.ssl_key = "./.ssl/me.key";
+  opts.ssl_cert = "./.ssl/me.crt";
+  opts.ssl_ca_cert = "./.ssl/ca.crt";
+  
+  mg_connection *nc = mg_bind_opt(&mgr, PORT, EventHandler, opts);
   if(NULL == nc) {
     mg_mgr_free(&mgr);
     perror("error: bind.");
