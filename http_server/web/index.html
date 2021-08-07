@@ -50,7 +50,6 @@
           method: 'GET',
           dataType: 'json',
           data: { msg: $("#get_data").val() },
-          headers: { "Connection": "close" },
           success: function (json) {
             console.log("get rsp: ", json);
             $('#result1').html(json.result);
