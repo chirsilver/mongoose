@@ -17,6 +17,8 @@ void MqttEventHandle(mg_connection *nc, int event, void *event_data, void *fn_da
 
 static sub *s_subs = NULL;
 bool exit_f = false;
+int keepalive = 0;
+double last_recv = mg_time();
 
 void SigInt(int signo) {printf("-----------------------exit-----------------------\n");exit_f=true;}
 
@@ -38,11 +40,15 @@ int main() {
     mg_mgr mgr;
     mg_mgr_init(&mgr);
 
-    mg_connection *nc = mg_mqtt_listen(&mgr, url.c_str(), MqttEventHandle, NULL);
+    int is_mqtt = 1;
+    mg_connection *nc = mg_mqtt_listen(&mgr, url.c_str(), MqttEventHandle, &is_mqtt);
     if(!nc) {
         puts("some error happend.");
         goto fail_init;
     }
+
+    nc->is_hexdumping = 1;
+
     while(!exit_f) mg_mgr_poll(&mgr, 500);
 fail_init:
     mg_mgr_free(&mgr);
@@ -58,13 +64,11 @@ void MqttEventHandle(mg_connection *nc, int event, void *event_data, void *fn_da
         }
         case MG_EV_MQTT_CMD: {
             mg_mqtt_message *mm = (mg_mqtt_message*)event_data;
-
-            #ifdef DEBUG_
-            DEBUG(mm);
-            #endif //DEBUG_
+            last_recv = mg_time();
 
             switch(mm->cmd) {
                 case MQTT_CMD_CONNECT: {
+                    keepalive = *(uint16_t*)(mm->dgram.ptr + 10);
                     uint8_t rsp[] = {0, 0};
                     mg_mqtt_send_header(nc, MQTT_CMD_CONNACK, 0, sizeof(rsp));
                     mg_send(nc, rsp, sizeof(rsp));
@@ -82,13 +86,20 @@ void MqttEventHandle(mg_connection *nc, int event, void *event_data, void *fn_da
                         sub_->qos = qos;
                         sub_->next = s_subs;
                         s_subs = sub_;
-                        LOG(LL_INFO, ("SUB %p [%.*s]", nc->fd, (int)sub_->topic.len, sub_->topic.ptr));
+                        // LOG(LL_INFO, ("SUB %p [%.*s]", nc->fd, (int)sub_->topic.len, sub_->topic.ptr));
                     }
+
+                    //SUBACK--
+                    char ack[128];
+                    memcpy(ack, mm->dgram.ptr, mm->dgram.len);
+                    ack[0] = (uint8_t)(MQTT_CMD_SUBACK << 4 | 0);
+                    mg_send(nc, ack, mm->dgram.len);
+                    //--SUBACK
                     break;
                 }
                 case MQTT_CMD_PUBLISH: {
                     //客户端发布消息，添加到所有的订阅频道
-                    LOG(LL_INFO, ("PUB %p [%.*s] -> [%.*s]", nc->fd, (int)mm->data.len, mm->data.ptr, (int)mm->topic.len, mm->topic.ptr));
+                    // LOG(LL_INFO, ("PUB %p [%.*s] -> [%.*s]", nc->fd, (int)mm->data.len, mm->data.ptr, (int)mm->topic.len, mm->topic.ptr));
                     for(sub *sub_ = s_subs; sub_ != NULL; sub_ = sub_->next) {
                         if(mg_strcmp(sub_->topic, mm->topic) != 0) continue;
                         mg_mqtt_pub(sub_->c, &mm->topic, &mm->data, 1, false);
@@ -105,24 +116,28 @@ void MqttEventHandle(mg_connection *nc, int event, void *event_data, void *fn_da
                                 if(pre) pre->next = sub_->next;
                                 else s_subs = sub_->next;
                                 delete sub_;
-                                LOG(LL_INFO, ("UNSUB %p [%.*s]", nc->fd, (int)sub_->topic.len, sub_->topic.ptr));
+                                // LOG(LL_INFO, ("UNSUB %p [%.*s]", nc->fd, (int)sub_->topic.len, sub_->topic.ptr));
                                 break;
                             }
                             pre = sub_;
                         }    
                     }
                     
-                    //UNSUBACK
+                    //UNSUBACK--
                     char ack[128];
                     ack[0] = (uint8_t)(MQTT_CMD_UNSUBACK << 4 | 0);
                     ack[1] = (uint8_t)(2);
                     *(uint16_t*)(ack+2) = *(uint16_t*)(mm->dgram.ptr + 2);
                     mg_send(nc, ack, 4);
+                    //--UNSUBACK
+                    break;
                 }
-                default: {
-                    #ifdef DEBUG_
-                    DEBUG(mm);
-                    #endif //DEBUG_
+                case MQTT_CMD_PINGREQ: {
+                    // LOG(LL_INFO, ("PINGREQ %p", nc->fd));
+                    //PINGRESP--
+                    mg_mqtt_pong(nc);
+                    //--PINGRESP
+                    break;
                 }
             }
             break;
@@ -135,6 +150,14 @@ void MqttEventHandle(mg_connection *nc, int event, void *event_data, void *fn_da
                 LOG(LL_INFO,
                     ("UNSUB %p [%.*s]", nc->fd, (int)sub_->topic.len, sub_->topic.ptr));
                 delete sub_;
+            }
+            break;
+        }
+        case MG_EV_POLL: {
+            if(*(int*)fn_data != 1) break;
+            double now = mg_time();
+            if (now - last_recv > 1.5 * keepalive) {
+                mg_mqtt_disconnect(nc);
             }
             break;
         }

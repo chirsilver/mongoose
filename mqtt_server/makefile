@@ -1,4 +1,4 @@
-FLAG = -Wall -g -lssl -lcrypto -DMG_ENABLE_OPENSSL=1 -DDEBUG__
+FLAG = -Wall -g -lssl -lcrypto -DMG_ENABLE_OPENSSL=1 -DDEBUG_
 PROG ?= server
 
 all: mongoose.o 
