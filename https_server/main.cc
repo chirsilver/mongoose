@@ -13,10 +13,10 @@ using namespace std;
     cout << level << ":\t" << exp << endl; \
   } while (0)
 
-bool g_quit = false;
+bool exit_f = false;
 void sigint(int signo){
   LOG("INFO", "exit...");
-  g_quit = true;
+  exit_f = true;
 }
 
 mg_mgr mgr;
@@ -53,7 +53,7 @@ int main() {
   serve_opt.enable_directory_listing = "yes";
 
   mg_set_protocol_http_websocket(nc);
-  while (!g_quit) {
+  while (!exit_f) {
     mg_mgr_poll(&mgr, 100);
   }
   mg_mgr_free(&mgr);

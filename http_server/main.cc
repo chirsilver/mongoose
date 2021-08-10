@@ -13,10 +13,12 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
+
+#define MG_ENABLE_SSL 1
 #include "../common/mongoose.h"
 using namespace std;
 
-void EventHandler(mg_connection *nc, int event, void *event_data);
+void EventHandler(mg_connection *nc, int event, void *event_data, void *fn_data);
 void Sigint(int signo);
 bool MatchUrl(http_message *hm, const char *prefix);
 void HandleHttpMessage(mg_connection *nc, http_message *hm);
@@ -29,31 +31,22 @@ void BroadcastWebsocketMsg(const string msg);
 unordered_set<mg_connection*> clients;
 
 #define PORT "8080"
+#define PORT_TLS "8443"
 bool g_quit = false;
 
-mg_serve_http_opts server_opt;
 unordered_set<mg_connection*> session;
 
 int main() {
   signal(SIGINT, Sigint);
 
-  server_opt.document_root = "./web";
-  server_opt.enable_directory_listing = "yes";
   mg_mgr mgr;
-  mg_bind_opts opts;
-  mg_mgr_init(&mgr, NULL);
-  bzero(&opts, sizeof(mg_bind_opts));
+  mg_mgr_init(&mgr);
   
-  opts.ssl_key = "./.ssl/me.key";
-  opts.ssl_cert = "./.ssl/me.crt";
-  opts.ssl_ca_cert = "./.ssl/ca.crt";
-  
-  mg_connection *nc = mg_bind_opt(&mgr, PORT, EventHandler, opts);
-  if(NULL == nc) {
-    mg_mgr_free(&mgr);
-    perror("error: bind.");
-  }
-  printf("bind on 8080 OK!\n");
+  mg_http_listen(&mgr, "http://127.0.0.1:8080", EventHandler, NULL);
+  mg_http_listen(&mgr, "https://127.0.0.1:8443", EventHandler, NULL);
+
+  printf("http bind on 8080 OK!\n"
+        "https bind on 8443 OK!\n");
 
   int epfd = epoll_create(5);
   epoll_event ev, evs[5];
@@ -61,7 +54,6 @@ int main() {
   ev.events = EPOLLIN;
   epoll_ctl(epfd, EPOLL_CTL_ADD, 0, &ev);
 
-  mg_set_protocol_http_websocket(nc);
   while(!g_quit) {
     mg_mgr_poll(&mgr, 500);
     int ret = epoll_wait(epfd, evs, 5, 100);
@@ -164,10 +156,11 @@ string ArrToJson(int arr[], int size) {
 
 void Sigint(int signo) {
   printf("-------------------------exit-------------------------\n");
-  g_quit = true;
+  exit_f = true;
 }
 
-void EventHandler(mg_connection *nc, int event, void *event_data) {
+void EventHandler(mg_connection *nc, int event, void *event_data, void *fn_data) {
+  if(event == MG_EV)
   if(event == MG_EV_HTTP_REQUEST) {
     http_message *hm = (http_message *)event_data;
     HandleHttpMessage(nc, hm);

@@ -1,4 +1,4 @@
-FLAGS = -lssl -lcrypto -DMG_ENABLE_SSL=1
+FLAGS = -lssl -lcrypto
 
 all:main.cc 
 	gcc -c ../common/mongoose.c $(FLAGS) -o mongoose.o
